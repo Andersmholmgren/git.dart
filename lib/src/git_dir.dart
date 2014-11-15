@@ -189,6 +189,11 @@ class GitDir {
     });
   }
 
+  Future addAll() => runCommand(['add', '--all', '--verbose']);
+
+  Future commit(String commitMessage) =>
+      runCommand(['commit', '--verbose', '-m', commitMessage]);
+
   /// Returns the `SHA1` for the new commit.
   ///
   /// See [git-commit-tree](http://git-scm.com/docs/git-commit-tree)
