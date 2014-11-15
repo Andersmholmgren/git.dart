@@ -435,7 +435,27 @@ class GitDir {
     });
   }
 
-  static Future<GitDir> _init(Directory source) {
+  static Future<GitDir> fromWithinExisting() {
+    return _gitRoot(Directory.current);
+  }
+
+  static Future<GitDir> _gitRoot(Directory dir, [Directory prev]) {
+    if (dir == prev) {
+      throw new StateError('not inside a git workspace');
+    }
+
+    return GitDir.isGitDir(dir.path).then((isGitDir) {
+      if (!isGitDir) {
+        throw new StateError('not inside a git workspace');
+      }
+      final dotGitDir = new Directory(p.join(dir.path, '.git'));
+      return dotGitDir.exists().then((containsDotGit) =>
+      containsDotGit ? GitDir.fromExisting(dir.path) :
+      _gitRoot(dir.parent, dir));
+    });
+  }
+
+    static Future<GitDir> _init(Directory source) {
     return _isGitDir(source).then((bool isGitDir) {
       if (isGitDir) {
         throw new ArgumentError('Cannot init a directory that is already a '
