@@ -1,16 +1,17 @@
-name: git
-version: 0.4.1+1
 author: Kevin Moore <github@j832.com>
 description: A dart wrapper around the git command line
-homepage: https://github.com/kevmoo/git.dart
-environment:
-  sdk: '>=1.0.0 <2.0.0'
 documentation: http://kevmoo.github.io/git.dart/
-dependencies:
+homepage: https://github.com/kevmoo/git.dart
+name: git
+version: 0.4.1+1
+dependencies: 
   bot: '>=0.26.0 <0.28.0'
   path: '>=1.0.0 <2.0.0'
-dev_dependencies:
+dependency_overrides: 
+dev_dependencies: 
   hop: '>=0.30.4+1 <0.32.0'
   hop_docgen: '>=0.1.2+5 <0.2.0'
   hop_unittest: '>=0.1.0 <0.2.0'
   scheduled_test: '>=0.10.0 <0.12.0'
+environment: 
+  sdk: '>=1.9.0 <2.0.0'
