@@ -78,16 +78,14 @@ class GitDir {
   /*
    * TODO: Test this! No tags. Many tags. Etc.
    */
-  Future<List<Tag>> getTags() {
-    return showRef(tags: true).then((List<CommitReference> refs) {
-      final futures = refs.map((ref) {
-        return runCommand(['cat-file', '-p', ref.sha]).then((ProcessResult pr) {
-          return Tag.parseCatFile(pr.stdout);
-        });
-      });
-
-      return Future.wait(futures);
+  Future<List<Tag>> getTags() async {
+    List<CommitReference> refs = await showRef(tags: true);
+    final futures = refs.map((ref) async {
+      ProcessResult pr = await runCommand(['cat-file', '-p', ref.sha]);
+      return Tag.parseCatFile(pr.stdout);
     });
+
+    return Future.wait(futures);
   }
 
   Future<List<CommitReference>> showRef({bool heads: false, bool tags: false}) {
@@ -120,12 +118,14 @@ class GitDir {
       return runCommand(['show-ref', '--verify', pr.stdout.trim()]);
     }).then((ProcessResult pr) {
       return CommitReference
-          .fromShowRefOutput(pr.stdout).single.toBranchReference();
+          .fromShowRefOutput(pr.stdout)
+          .single
+          .toBranchReference();
     });
   }
 
-  Future<List<TreeEntry>> lsTree(
-      String treeish, {bool subTreesOnly: false, String path: null}) {
+  Future<List<TreeEntry>> lsTree(String treeish,
+      {bool subTreesOnly: false, String path: null}) {
     assert(treeish != null);
     final args = ['ls-tree'];
 
@@ -183,9 +183,8 @@ class GitDir {
         return null;
       }
 
-      return commitTree(treeSha, commitMessage, parentCommitShas: [
-        targetBranchSha
-      ]);
+      return commitTree(treeSha, commitMessage,
+          parentCommitShas: [targetBranchSha]);
     });
   }
 
@@ -197,8 +196,8 @@ class GitDir {
   /// Returns the `SHA1` for the new commit.
   ///
   /// See [git-commit-tree](http://git-scm.com/docs/git-commit-tree)
-  Future<String> commitTree(
-      String treeSha, String commitMessage, {List<String> parentCommitShas}) {
+  Future<String> commitTree(String treeSha, String commitMessage,
+      {List<String> parentCommitShas}) {
     requireArgumentValidSha1(treeSha, 'treeSha');
 
     requireArgumentNotNullOrEmpty(commitMessage, 'commitMessage');
@@ -243,26 +242,26 @@ class GitDir {
     });
   }
 
-  Future<ProcessResult> runCommand(
-      Iterable<String> args, [bool throwOnError = true]) {
+  Future<ProcessResult> runCommand(Iterable<String> args,
+      [bool throwOnError = true]) {
     requireArgumentNotNull(args, 'args');
 
     final list = args.toList();
 
     for (final arg in list) {
       requireArgumentNotNullOrEmpty(arg, 'args');
-      requireArgument(!arg
-          .contains(_WORK_TREE_ARG), 'args', 'Cannot contain $_WORK_TREE_ARG');
-      requireArgument(!arg
-          .contains(_GIT_DIR_ARG), 'args', 'Cannot contain $_GIT_DIR_ARG');
+      requireArgument(!arg.contains(_WORK_TREE_ARG), 'args',
+          'Cannot contain $_WORK_TREE_ARG');
+      requireArgument(
+          !arg.contains(_GIT_DIR_ARG), 'args', 'Cannot contain $_GIT_DIR_ARG');
     }
 
     if (_gitWorkTree != null) {
       list.insert(0, '$_WORK_TREE_ARG${_gitWorkTree}');
     }
 
-    return runGit(list, throwOnError: throwOnError,
-        processWorkingDir: _processWorkingDir);
+    return runGit(list,
+        throwOnError: throwOnError, processWorkingDir: _processWorkingDir);
   }
 
   Future<bool> isWorkingTreeClean() {
@@ -303,7 +302,6 @@ class GitDir {
 
       return populater(tempDirs.gitWorkTreeDir);
     }).then((_) {
-
       // make sure there is something in the working three
       return tempDirs.gitDir.runCommand(['ls-files', '--others']);
     }).then((ProcessResult pr) {
@@ -325,8 +323,8 @@ class GitDir {
 
       // Time to commit.
       return tempDirs.gitDir
-          .runCommand(['commit', '--verbose', '-m', commitMessage])
-          .then((ProcessResult pr) {
+          .runCommand(['commit', '--verbose', '-m', commitMessage]).then(
+              (ProcessResult pr) {
         // --verbose is not strictly needed, but nice for debugging
         return tempDirs.gitDir
             .runCommand(['push', '--verbose', '--progress', path, branchName]);
@@ -358,7 +356,6 @@ class GitDir {
     }).then((ProcessResult _) {
       return td.gitDir.runCommand(['checkout', '--orphan', newBranchName]);
     }).then((ProcessResult _) {
-
       // since we're checked out, need to clear out local content
       return td.gitDir.runCommand(['rm', '-r', '-f', '--ignore-unmatch', '.']);
     }).then((ProcessResult _) => td);
@@ -386,7 +383,6 @@ class GitDir {
     }).then((ProcessResult _) {
       return td.gitDir.runCommand(['checkout']);
     }).then((ProcessResult _) {
-
       // since we're checked out, need to clear out local content
       return td.gitDir.runCommand(['rm', '-r', '.']);
     }).then((ProcessResult _) => td);
@@ -427,10 +423,8 @@ class GitDir {
   static Future<GitDir> fromExisting(String gitDirRoot) {
     final path = p.absolute(gitDirRoot);
 
-    return runGit([
-      'rev-parse',
-      '--git-dir'
-    ], processWorkingDir: path.toString()).then((ProcessResult pr) {
+    return runGit(['rev-parse', '--git-dir'],
+        processWorkingDir: path.toString()).then((ProcessResult pr) {
       if (pr.stdout.trim() == '.git') {
         return new GitDir._raw(path);
       } else {
@@ -454,13 +448,13 @@ class GitDir {
         throw new StateError('not inside a git workspace');
       }
       final dotGitDir = new Directory(p.join(dir.path, '.git'));
-      return dotGitDir.exists().then((containsDotGit) =>
-      containsDotGit ? GitDir.fromExisting(dir.path) :
-      _gitRoot(dir.parent, dir));
+      return dotGitDir.exists().then((containsDotGit) => containsDotGit
+          ? GitDir.fromExisting(dir.path)
+          : _gitRoot(dir.parent, dir));
     });
   }
 
-    static Future<GitDir> _init(Directory source) {
+  static Future<GitDir> _init(Directory source) {
     return _isGitDir(source).then((bool isGitDir) {
       if (isGitDir) {
         throw new ArgumentError('Cannot init a directory that is already a '
@@ -469,7 +463,6 @@ class GitDir {
 
       return runGit(['init', source.path]);
     }).then((ProcessResult pr) {
-
       // does a bit more work than strictly nessesary
       // but at least it ensures consistency
       return fromExisting(source.path);
@@ -481,10 +474,9 @@ class GitDir {
 
     // using rev-parse because it will fail in many scenarios
     // including if the directory provided is a bare repository
-    return runGit([
-      'rev-parse'
-    ], throwOnError: false, processWorkingDir: dir.path)
-        .then((ProcessResult pr) {
+    return runGit(['rev-parse'],
+        throwOnError: false,
+        processWorkingDir: dir.path).then((ProcessResult pr) {
       // if exitCode is 0, status worked...which means this is a git dir
       return pr.exitCode == 0;
     });
@@ -516,10 +508,8 @@ class _TempDirs {
   String toString() => [gitHostDir, gitWorkTreeDir].toString();
 
   Future dispose() {
-    return Future.forEach([
-      gitHostDir,
-      gitWorkTreeDir
-    ], (Directory dir) => dir.delete(recursive: true));
+    return Future.forEach([gitHostDir, gitWorkTreeDir],
+        (Directory dir) => dir.delete(recursive: true));
   }
 }
 
